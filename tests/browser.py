@@ -145,21 +145,79 @@ class BrowserTests(unittest.TestCase):
         p=self.page
         p.evaluate('''() => {
           window.said=[];
-          speechSynthesis.speak=(u)=>{window.said.push({text:u.text,lang:u.lang,rate:u.rate}); window.lastUtterance=u;};
+          speechSynthesis.getVoices=()=>[{name:'English',voiceURI:'en',lang:'en-US',default:true},{name:'日本語',voiceURI:'ja',lang:'ja-JP'}];
+          speechSynthesis.speak=(u)=>{window.said.push({text:u.text,lang:u.lang,rate:u.rate,voice:u.voice.voiceURI}); window.lastUtterance=u;};
+          window.SpeechSynthesisUtterance=class {constructor(text){this.text=text;}};
           speechSynthesis.cancel=()=>{};
         }''')
         p.locator('#course').select_option('service')
         for _ in range(5): p.locator('#next').click()
         p.locator('#speak').click(); p.locator('#aliasSpeak').click()
         said=p.evaluate('window.said')
-        self.assertEqual(said[0]['text'],'げぜん。しょくじがおわったらげぜんしてください。')
-        self.assertEqual(said[1]['text'],'さげぜん。おさらをさげてください。')
+        self.assertEqual(said[0]['text'],'下膳。食事が終わったら下膳してください。')
+        self.assertEqual(said[1]['text'],'下げ膳。お皿を下げてください。')
         self.assertEqual(said[0]['lang'],'ja-JP')
+        self.assertEqual(said[0]['rate'],1)
+        self.assertEqual(said[0]['voice'],'ja')
         p.evaluate("window.lastUtterance.onerror({error:'language-unavailable'})")
         expect(p.locator('#audioStatus')).to_contain_text('再生できません')
         p.evaluate("delete window.speechSynthesis; delete window.SpeechSynthesisUtterance")
         p.locator('#speak').click()
         expect(p.locator('#audioStatus')).to_contain_text('対応していません')
+
+    def test_voice_settings_survive_reload(self):
+        p=self.page
+        self.context.add_init_script("""(() => {
+          window.SpeechSynthesisUtterance=class {constructor(text){this.text=text;}};
+          speechSynthesis.getVoices=()=>[
+            {name:'English',voiceURI:'en',lang:'en-US'},
+            {name:'Japanese A',voiceURI:'ja-a',lang:'ja-JP',default:true},
+            {name:'Japanese B',voiceURI:'ja-b',lang:'ja-JP'}];
+          speechSynthesis.cancel=()=>{};
+          speechSynthesis.speak=u=>{window.lastSpoken={text:u.text,voice:u.voice.voiceURI,rate:u.rate};};
+        })()""")
+        p.reload()
+        p.locator('.audio-settings summary').click()
+        self.assertEqual(p.locator('#voice option').count(),3) # Auto + two Japanese voices.
+        p.locator('#voice').select_option('ja-b')
+        p.locator('#rate').select_option('0.85')
+        p.reload()
+        expect(p.locator('#voice')).to_have_value('ja-b')
+        expect(p.locator('#rate')).to_have_value('0.85')
+        p.locator('#speak').click()
+        result=p.evaluate('window.lastSpoken')
+        self.assertEqual(result,{'text':'確認。予約を確認してください。','voice':'ja-b','rate':0.85})
+
+    def test_delayed_voices_and_no_foreign_fallback(self):
+        p=self.page
+        p.evaluate("""() => {
+          window.SpeechSynthesisUtterance=class {constructor(text){this.text=text;}};
+          window.voices=[{name:'English',voiceURI:'en',lang:'en-US',default:true}];
+          window.said=[];
+          speechSynthesis.getVoices=()=>window.voices;
+          speechSynthesis.cancel=()=>{};
+          speechSynthesis.speak=u=>window.said.push(u.text);
+        }""")
+        p.locator('#speak').click()
+        expect(p.locator('#audioStatus')).to_contain_text('見つかりません')
+        self.assertEqual(p.evaluate('window.said'),[])
+        # Voices arriving after a user request are picked up without reloading.
+        p.locator('#speak').click()
+        p.evaluate("""() => {
+          window.voices.push({name:'Japanese',voiceURI:'ja',lang:'ja-JP'});
+          speechSynthesis.dispatchEvent(new Event('voiceschanged'));
+        }""")
+        expect(p.locator('#audioStatus')).to_contain_text('再生中')
+        self.assertEqual(p.evaluate('window.said'),['確認。予約を確認してください。'])
+        # A pending request must not play after navigating to another mode.
+        p.evaluate('window.voices=[]')
+        p.locator('#speak').click()
+        p.locator('#tabReview').click()
+        p.evaluate("""() => {
+          window.voices.push({name:'Japanese',voiceURI:'ja',lang:'ja-JP'});
+          speechSynthesis.dispatchEvent(new Event('voiceschanged'));
+        }""")
+        self.assertEqual(p.evaluate('window.said'),['確認。予約を確認してください。'])
 
     def test_future_language_fallback(self):
         p=self.page

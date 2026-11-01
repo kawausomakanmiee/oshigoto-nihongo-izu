@@ -4,12 +4,14 @@ const $ = id => document.getElementById(id);
 const storageKey = 'izu-japanese-beta-v1';
 const validIds = new Set(vocab.map(v => v.id));
 const cleanIds = values => [...new Set(Array.isArray(values) ? values.filter(id => validIds.has(id)) : [])];
-let state = {learned: [], wrong: [], lang: 'id', furi: true};
+let state = {learned: [], wrong: [], lang: 'id', furi: true, voiceURI: '', rate: 1};
 let storageAvailable = true;
 try {
   const saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {};
   state = {learned: cleanIds(saved.learned), wrong: cleanIds(saved.wrong),
-    lang: languages.some(l => l.code === saved.lang) ? saved.lang : 'id', furi: saved.furi !== false};
+    lang: languages.some(l => l.code === saved.lang) ? saved.lang : 'id', furi: saved.furi !== false,
+    voiceURI: typeof saved.voiceURI === 'string' ? saved.voiceURI : '',
+    rate: [0.85, 1].includes(saved.rate) ? saved.rate : 1};
 } catch { storageAvailable = false; }
 function save() {
   try { localStorage.setItem(storageKey, JSON.stringify(state)); storageAvailable = true; }
@@ -24,8 +26,8 @@ function ruby(text) {
   return escapeHTML(text).replace(/([一-龯々]+)\[([^\]]+)\]/g, (_, word, reading) =>
     `<ruby>${word}<rt>${reading}</rt></ruby>`);
 }
-// Read kana explicitly so speech engines do not guess unfamiliar hospitality terms.
-const spoken = text => text.replace(/([一-龯々]+)\[([^\]]+)\]/g, '$2');
+// Preserve kanji and context for Japanese phrasing; remove display-only ruby readings.
+const spoken = text => text.replace(/([一-龯々]+)\[([^\]]+)\]/g, '$1');
 const localize = translations => translations?.[state.lang] ?? translations?.ja ?? '';
 function translated(id, translations) {
   $(id).textContent = localize(translations);
@@ -138,26 +140,70 @@ function renderQuiz() {
   }
 }
 let utterance;
+let speechRequest = 0;
+const hasSpeech = () => 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+const japaneseVoices = () => hasSpeech() ? speechSynthesis.getVoices().filter(v => /^ja(?:[-_]|$)/i.test(v.lang)) : [];
+function refreshVoices() {
+  const voices = japaneseVoices();
+  const automatic = new Option('自動 / Otomatis', '');
+  $('voice').replaceChildren(automatic, ...voices.map(v => new Option(v.name, v.voiceURI)));
+  // Keep the preference even while the asynchronous voice list is unavailable.
+  $('voice').value = voices.some(v => v.voiceURI === state.voiceURI) ? state.voiceURI : '';
+  $('voice').disabled = !voices.length;
+}
 function stopSpeech() {
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  speechRequest++;
+  utterance = null;
+  if (hasSpeech()) window.speechSynthesis.cancel();
   $('audioStatus').textContent = '';
 }
-function speak(text) {
-  if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+function waitForVoices() {
+  if (japaneseVoices().length) return Promise.resolve();
+  return new Promise(resolve => {
+    const finish = () => {
+      clearTimeout(timeout);
+      speechSynthesis.removeEventListener('voiceschanged', changed);
+      resolve();
+    };
+    const changed = () => { if (japaneseVoices().length) finish(); };
+    const timeout = setTimeout(finish, 1500);
+    speechSynthesis.addEventListener('voiceschanged', changed);
+  });
+}
+async function speak(text) {
+  if (!hasSpeech()) {
     $('audioStatus').textContent = '音声に対応していません。 / Audio tidak didukung.'; return;
   }
   stopSpeech();
-  utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'ja-JP'; utterance.rate = 0.83;
-  const voice = speechSynthesis.getVoices().find(v => /^ja(?:-|_)/i.test(v.lang));
-  if (voice) utterance.voice = voice;
+  const request = speechRequest;
+  $('audioStatus').textContent = '日本語音声を確認中… / Memeriksa suara bahasa Jepang…';
+  await waitForVoices();
+  if (request !== speechRequest) return;
+  const voices = japaneseVoices();
+  refreshVoices();
+  const voice = voices.find(v => v.voiceURI === state.voiceURI) || voices.find(v => v.default) || voices[0];
+  if (!voice) {
+    $('audioStatus').textContent = '日本語の声が見つかりません。端末の読み上げ設定で日本語音声を追加してください。 / Tambahkan suara bahasa Jepang di pengaturan perangkat.';
+    return;
+  }
+  const current = new SpeechSynthesisUtterance(text);
+  utterance = current; // Retain the utterance while the engine is speaking.
+  current.lang = 'ja-JP'; current.rate = state.rate; current.pitch = 1; current.voice = voice;
   $('audioStatus').textContent = '再生中 / Memutar audio…';
-  utterance.onend = () => { $('audioStatus').textContent = ''; };
-  utterance.onerror = event => {
+  current.onend = () => { if (request === speechRequest) { utterance = null; $('audioStatus').textContent = ''; } };
+  current.onerror = event => {
+    if (request !== speechRequest) return;
+    utterance = null;
     if (!['canceled', 'interrupted'].includes(event.error)) $('audioStatus').textContent = '音声を再生できません。端末の日本語音声を確認してください。 / Periksa suara bahasa Jepang di perangkat Anda.';
+    else $('audioStatus').textContent = '';
   };
-  speechSynthesis.speak(utterance);
+  speechSynthesis.speak(current);
 }
+refreshVoices();
+if (hasSpeech()) speechSynthesis.addEventListener('voiceschanged', refreshVoices);
+$('rate').value = String(state.rate);
+$('voice').onchange = () => { stopSpeech(); state.voiceURI = $('voice').value; save(); };
+$('rate').onchange = () => { stopSpeech(); state.rate = Number($('rate').value); save(); };
 for (const lang of languages) {
   const option = document.createElement('option'); option.value = lang.code; option.textContent = lang.label;
   $('lang').append(option);
@@ -182,9 +228,9 @@ $('furi').onchange = () => { state.furi = $('furi').checked; document.body.class
 $('prev').onclick = () => { stopSpeech(); index--; renderCard(); };
 $('next').onclick = () => { stopSpeech(); index++; renderCard(); };
 $('mark').onclick = () => { const id = filtered()[index].id; if (!state.learned.includes(id)) state.learned.push(id); save(); renderCard(); };
-$('speak').onclick = () => { const v = filtered()[index]; speak(v.reading + '。' + spoken(v.sentence)); };
-$('aliasSpeak').onclick = () => { const v = filtered()[index]; speak(v.aliases.map(a => a.reading).join('。') + '。' + spoken(v.aliasSentence)); };
-$('quizSpeak').onclick = () => { const v = quizList[quizIndex]; if (v) speak([v, ...v.aliases].map(a => a.reading).join('。')); };
+$('speak').onclick = () => { const v = filtered()[index]; speak(v.word + '。' + spoken(v.sentence)); };
+$('aliasSpeak').onclick = () => { const v = filtered()[index]; speak(v.aliases.map(a => a.word).join('。') + '。' + spoken(v.aliasSentence)); };
+$('quizSpeak').onclick = () => { const v = quizList[quizIndex]; if (v) speak([v, ...v.aliases].map(a => a.word).join('。')); };
 $('quizNext').onclick = () => { stopSpeech(); quizIndex++; prepareQuestion(); renderQuiz(); $('quizWord').focus(); };
 $('quizRestart').onclick = () => startQuiz(reviewMode);
 $('startReview').onclick = () => startQuiz(true);
