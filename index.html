@@ -27,10 +27,10 @@
 <label>
 <input type="checkbox" id="furi" checked> ふりがな</label>
 </div>
-<p class="muted">3コース・30語。毎日、少しずつ学びましょう。<br>
-<span lang="id">Belajar sedikit demi sedikit setiap hari. Catatan disimpan di browser ini.</span>
+<p class="muted" data-ruby>会話[かいわ]で学[まな]ぶ、職場[しょくば]の日本語[にほんご]。<br>
+<span lang="id">Belajar bahasa Jepang melalui percakapan di tempat kerja.</span>
 </p>
-<div class="row">
+<div id="vocabProgress"><div class="row">
 <strong id="summary">0 / 30 語を学習</strong>
 <span class="pill">無料テスト版</span>
 </div>
@@ -38,7 +38,7 @@
 <div id="bar" style="width:0%">
 </div>
 </div>
-</section>
+</div></section>
 <details class="panel audio-settings">
 <summary data-ruby>音声[おんせい]の設定[せってい] / Pengaturan suara</summary>
 <div class="row">
@@ -50,11 +50,12 @@
 <p class="muted" data-ruby>端末[たんまつ]の声[こえ]を選[えら]んで、聞[き]きやすいものを試[ため]してください。</p>
 </details>
 <nav class="tabs" aria-label="学習メニュー">
-<button id="tabLearn" class="active" data-ruby>📖 単語[たんご]カード</button>
+<button id="tabLessons" data-ruby>💬 会話[かいわ]</button>
+<button id="tabLearn" data-ruby>📖 単語[たんご]カード</button>
 <button id="tabQuiz">📝 4択クイズ</button>
 <button id="tabReview" data-ruby>🔁 復習[ふくしゅう]</button>
 </nav>
-<section class="panel">
+<section class="panel" id="coursePanel">
 <label for="course" data-ruby>コースを選[えら]ぶ</label> <select id="course">
 <option value="all">すべて（30語）</option>
 <option value="basic">① 基本・報連相</option>
@@ -62,6 +63,47 @@
 <option value="service">③ 接客・食事</option>
 </select>
 </section>
+<section id="lessons" class="hidden" aria-labelledby="lessonsHeading">
+<div class="panel">
+<h2 id="lessonsHeading" data-ruby>会話[かいわ]レッスン / Latihan percakapan</h2>
+<p data-ruby>会話[かいわ]を読[よ]んで、声[こえ]に出[だ]してみましょう。そのあと、場面[ばめん]に合[あ]う返事[へんじ]を選[えら]びます。</p>
+<p lang="id">Baca dan coba ucapkan percakapannya. Setelah itu, pilih respons yang sesuai dengan situasi.</p>
+<p id="lessonSummary" role="status"></p>
+<p class="small lesson-note" data-ruby>日本語[にほんご]・インドネシア語[ご]とも暫定教材[ざんていきょうざい]です。母語話者[ぼごわしゃ]と現場担当者[げんばたんとうしゃ]の確認[かくにん]が必要[ひつよう]です。施設[しせつ]の手順[てじゅん]を優先[ゆうせん]してください。</p>
+<p class="small" lang="id">Materi sementara. Terjemahan perlu ditinjau penutur asli bahasa Indonesia dan praktisi perhotelan. Ikuti prosedur tempat kerja Anda.</p>
+</div>
+<div id="lessonList" class="lesson-list"></div>
+<article id="lessonDetail" class="hidden">
+<div class="panel">
+<button id="lessonBack">← 一覧 / Daftar</button>
+<h2 id="lessonTitle" tabindex="-1"></h2><p id="lessonTitleId" lang="id"></p>
+<div id="lessonGoal" class="translation"></div>
+<ol id="lessonDialogue" class="dialogue"></ol>
+<h3 data-ruby>伝[つた]え方[かた]のポイント / Ungkapan penting</h3>
+<div id="lessonPhrase"></div>
+<h3 data-ruby>会話[かいわ]を助[たす]ける単語[たんご] / Kosakata pendukung</h3>
+<ul id="lessonVocab" class="lesson-vocab"></ul>
+<button id="lessonPractice" class="primary" data-ruby>返事[へんじ]を練習[れんしゅう]する / Latih respons</button>
+</div>
+<section id="lessonQuiz" class="panel hidden" aria-labelledby="lessonQuizHeading">
+<h3 id="lessonQuizHeading" data-ruby>場面[ばめん]に合[あ]う返事[へんじ] / Respons yang sesuai</h3>
+<div id="lessonQuizContext" class="translation"></div>
+<div id="lessonQuizPrompt" tabindex="-1"></div>
+<div id="lessonOptions" class="options lesson-options"></div>
+<div id="lessonFeedback" class="feedback hidden" role="status" tabindex="-1"></div>
+<p id="lessonResults"></p>
+<button id="lessonRetry" class="hidden">もう一度 / Coba lagi</button>
+<p data-ruby>会話[かいわ]を読[よ]み、正解[せいかい]したら「完了[かんりょう]」を押[お]してください。</p>
+<button id="lessonComplete" class="primary" disabled></button>
+<p id="lessonCompleteStatus" role="status"></p>
+<button id="lessonNext" class="hidden" data-ruby>次[つぎ]の会話[かいわ]へ / Percakapan berikutnya</button>
+</section>
+</article>
+<p id="lessonStorageStatus" class="status" role="status"></p>
+<details class="panel"><summary data-ruby>会話記録[かいわきろく]の管理[かんり] / Catatan percakapan</summary>
+<button id="lessonReset">会話の記録だけを消去 / Hapus catatan percakapan saja</button></details>
+</section>
+<button id="lessonReturn" class="hidden" data-ruby>← 会話[かいわ]に戻[もど]る / Kembali ke percakapan</button>
 <section id="learn" class="panel">
 <div class="row">
 <span class="pill" id="courseLabel">
@@ -137,13 +179,15 @@
 <h3 data-ruby>使[つか]い方[かた]・ご意見[いけん]</h3>
 <p class="small" data-ruby>このアプリは開発中[かいはつちゅう]の試作品[しさくひん]です。施設[しせつ]の作業[さぎょう]や安全[あんぜん]のルールは、担当者[たんとうしゃ]に確認[かくにん]してください。音声[おんせい]は端末[たんまつ]の読[よ]み上[あ]げ機能[きのう]を使[つか]います。</p>
 <p class="small" lang="id">Aplikasi ini masih dalam tahap uji coba. Ikuti prosedur kerja dan keselamatan di tempat kerja Anda. Kualitas suara bergantung pada perangkat.</p>
-<button id="reset" data-ruby>学習記録[がくしゅうきろく]を消去[しょうきょ] / Hapus catatan</button>
+<button id="reset" data-ruby>単語[たんご]の記録[きろく]を消去[しょうきょ] / Hapus catatan kosakata</button>
 </section>
 </main>
 <footer>© おしごと日本語｜IZU β — 試用版・非公式教材</footer>
 <script src="data.js">
 </script>
+<script src="lessons-data.js"></script>
 <script src="app.js">
 </script>
+<script src="lessons.js"></script>
 </body>
 </html>

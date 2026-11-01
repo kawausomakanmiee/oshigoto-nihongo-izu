@@ -48,12 +48,15 @@ function renderSummary() {
 function setMode(next) {
   stopSpeech();
   mode = next;
-  for (const key of ['learn', 'quiz', 'review']) {
+  for (const key of ['lessons', 'learn', 'quiz', 'review']) {
     $(key).classList.toggle('hidden', key !== mode);
     const tab = $('tab' + key[0].toUpperCase() + key.slice(1));
     tab.classList.toggle('active', key === mode);
     tab.setAttribute('aria-pressed', String(key === mode));
   }
+  $('coursePanel').classList.toggle('hidden', mode === 'lessons');
+  $('vocabProgress').classList.toggle('hidden', mode === 'lessons');
+  window.dispatchEvent(new Event('izumodechange'));
 }
 function renderCard() {
   const list = filtered();
@@ -140,6 +143,7 @@ function renderQuiz() {
   }
 }
 let utterance;
+let speechStatus = $('audioStatus');
 let speechRequest = 0;
 const hasSpeech = () => 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 const japaneseVoices = () => hasSpeech() ? speechSynthesis.getVoices().filter(v => /^ja(?:[-_]|$)/i.test(v.lang)) : [];
@@ -155,7 +159,7 @@ function stopSpeech() {
   speechRequest++;
   utterance = null;
   if (hasSpeech()) window.speechSynthesis.cancel();
-  $('audioStatus').textContent = '';
+  speechStatus.textContent = '';
 }
 function waitForVoices() {
   if (japaneseVoices().length) return Promise.resolve();
@@ -170,32 +174,33 @@ function waitForVoices() {
     speechSynthesis.addEventListener('voiceschanged', changed);
   });
 }
-async function speak(text) {
-  if (!hasSpeech()) {
-    $('audioStatus').textContent = '音声に対応していません。 / Audio tidak didukung.'; return;
-  }
+async function speak(text, status = $('audioStatus')) {
   stopSpeech();
+  speechStatus = status;
+  if (!hasSpeech()) {
+    status.textContent = '音声に対応していません。 / Audio tidak didukung.'; return;
+  }
   const request = speechRequest;
-  $('audioStatus').textContent = '日本語音声を確認中… / Memeriksa suara bahasa Jepang…';
+  status.textContent = '日本語音声を確認中… / Memeriksa suara bahasa Jepang…';
   await waitForVoices();
   if (request !== speechRequest) return;
   const voices = japaneseVoices();
   refreshVoices();
   const voice = voices.find(v => v.voiceURI === state.voiceURI) || voices.find(v => v.default) || voices[0];
   if (!voice) {
-    $('audioStatus').textContent = '日本語の声が見つかりません。端末の読み上げ設定で日本語音声を追加してください。 / Tambahkan suara bahasa Jepang di pengaturan perangkat.';
+    status.textContent = '日本語の声が見つかりません。端末の読み上げ設定で日本語音声を追加してください。 / Tambahkan suara bahasa Jepang di pengaturan perangkat.';
     return;
   }
   const current = new SpeechSynthesisUtterance(text);
   utterance = current; // Retain the utterance while the engine is speaking.
   current.lang = 'ja-JP'; current.rate = state.rate; current.pitch = 1; current.voice = voice;
-  $('audioStatus').textContent = '再生中 / Memutar audio…';
-  current.onend = () => { if (request === speechRequest) { utterance = null; $('audioStatus').textContent = ''; } };
+  status.textContent = '再生中 / Memutar audio…';
+  current.onend = () => { if (request === speechRequest) { utterance = null; status.textContent = ''; } };
   current.onerror = event => {
     if (request !== speechRequest) return;
     utterance = null;
-    if (!['canceled', 'interrupted'].includes(event.error)) $('audioStatus').textContent = '音声を再生できません。端末の日本語音声を確認してください。 / Periksa suara bahasa Jepang di perangkat Anda.';
-    else $('audioStatus').textContent = '';
+    if (!['canceled', 'interrupted'].includes(event.error)) status.textContent = '音声を再生できません。端末の日本語音声を確認してください。 / Periksa suara bahasa Jepang di perangkat Anda.';
+    else status.textContent = '';
   };
   speechSynthesis.speak(current);
 }
@@ -223,7 +228,7 @@ $('tabLearn').onclick = () => { setMode('learn'); renderCard(); };
 $('tabQuiz').onclick = () => startQuiz(false);
 $('tabReview').onclick = () => { setMode('review'); renderSummary(); };
 $('course').onchange = () => { stopSpeech(); index = 0; if (mode === 'quiz') startQuiz(reviewMode); else renderCard(); };
-$('lang').onchange = () => { state.lang = $('lang').value; save(); renderCard(); if (mode === 'quiz') renderQuiz(); };
+$('lang').onchange = () => { stopSpeech(); state.lang = $('lang').value; save(); renderCard(); if (mode === 'quiz') renderQuiz(); window.dispatchEvent(new Event('izulanguagechange')); };
 $('furi').onchange = () => { state.furi = $('furi').checked; document.body.classList.toggle('hide-furi', !state.furi); save(); };
 $('prev').onclick = () => { stopSpeech(); index--; renderCard(); };
 $('next').onclick = () => { stopSpeech(); index++; renderCard(); };
@@ -235,7 +240,7 @@ $('quizNext').onclick = () => { stopSpeech(); quizIndex++; prepareQuestion(); re
 $('quizRestart').onclick = () => startQuiz(reviewMode);
 $('startReview').onclick = () => startQuiz(true);
 $('reset').onclick = () => {
-  if (!confirm('この端末の学習記録をすべて消去しますか？ / Hapus semua catatan belajar di perangkat ini?')) return;
+  if (!confirm('この端末の単語の学習記録を消去しますか？会話の記録は残ります。 / Hapus catatan kosakata saja? Catatan percakapan tetap disimpan.')) return;
   state.learned = []; state.wrong = []; index = 0; save(); setMode('learn'); renderCard();
 };
 window.addEventListener('pagehide', stopSpeech);
