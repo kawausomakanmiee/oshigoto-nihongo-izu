@@ -185,4 +185,4 @@ window.addEventListener('izumodechange', () => {
   $('lessonReturn').classList.toggle('hidden', mode !== 'learn' || !returnLesson);
 });
 window.addEventListener('izulanguagechange', renderLessons);
-setMode('lessons'); renderLessons();
+setMode('home'); renderLessons(); renderHomeProgress();
