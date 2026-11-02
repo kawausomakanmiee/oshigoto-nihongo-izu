@@ -50,11 +50,24 @@
 <p class="muted" data-ruby>端末[たんまつ]の声[こえ]を選[えら]んで、聞[き]きやすいものを試[ため]してください。</p>
 </details>
 <nav class="tabs" aria-label="学習メニュー">
+<button id="tabHome" class="home-nav" data-ruby>⌂ ホーム</button>
 <button id="tabLessons" data-ruby>💬 会話[かいわ]</button>
 <button id="tabLearn" data-ruby>📖 単語[たんご]カード</button>
 <button id="tabQuiz">📝 4択クイズ</button>
 <button id="tabReview" data-ruby>🔁 復習[ふくしゅう]</button>
 </nav>
+<section id="home" class="panel home-screen" aria-labelledby="homeHeading">
+  <h2 id="homeHeading" data-ruby>今日[きょう]は何[なに]を学[まな]びますか？</h2>
+  <p class="muted" lang="id">Apa yang ingin Anda pelajari hari ini?</p>
+  <p id="homeProgress" class="home-progress" role="status"></p>
+  <div class="home-grid">
+    <button id="homeLessons" class="home-tile"><span class="home-icon" aria-hidden="true">💬</span><strong>会話レッスン</strong><span lang="id">Latihan percakapan</span><small>職場の会話を練習する</small></button>
+    <button id="homeWords" class="home-tile"><span class="home-icon" aria-hidden="true">📖</span><strong>単語カード</strong><span lang="id">Kosakata</span><small>仕事のことばを学ぶ</small></button>
+    <button id="homeQuiz" class="home-tile"><span class="home-icon" aria-hidden="true">📝</span><strong>4択クイズ</strong><span lang="id">Kuis</span><small>覚えたことを確認する</small></button>
+    <button id="homeReview" class="home-tile"><span class="home-icon" aria-hidden="true">🔁</span><strong>復習</strong><span lang="id">Ulangi</span><small>間違えた単語を練習する</small></button>
+  </div>
+  <p class="muted small">どの画面からでも、上の「⌂ ホーム」でここに戻れます。</p>
+</section>
 <section class="panel" id="coursePanel">
 <label for="course" data-ruby>コースを選[えら]ぶ</label> <select id="course">
 <option value="all">すべて（30語）</option>
