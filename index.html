@@ -90,13 +90,13 @@
 <div class="panel">
 <button id="lessonBack">← 一覧 / Daftar</button>
 <h2 id="lessonTitle" tabindex="-1"></h2><p id="lessonTitleId" lang="id"></p>
+<div class="lesson-steps" aria-label="学習のステップ"><span id="stepHear">① 聞く</span><span id="stepAnswer">② 答える</span><span id="stepReview">③ 復習</span></div>
+<div id="lessonListen">
 <div id="lessonGoal" class="translation"></div>
 <ol id="lessonDialogue" class="dialogue"></ol>
-<h3 data-ruby>伝[つた]え方[かた]のポイント / Ungkapan penting</h3>
-<div id="lessonPhrase"></div>
-<h3 data-ruby>会話[かいわ]を助[たす]ける単語[たんご] / Kosakata pendukung</h3>
-<ul id="lessonVocab" class="lesson-vocab"></ul>
-<button id="lessonPractice" class="primary" data-ruby>返事[へんじ]を練習[れんしゅう]する / Latih respons</button>
+<p id="lessonPagePosition" class="muted" aria-live="polite"></p>
+<div class="lesson-actions"><button id="lessonPairPrev" type="button">← 前の会話</button><button id="lessonPractice" class="primary" type="button">次へ →</button></div>
+</div>
 </div>
 <section id="lessonQuiz" class="panel hidden" aria-labelledby="lessonQuizHeading">
 <h3 id="lessonQuizHeading" data-ruby>場面[ばめん]に合[あ]う返事[へんじ] / Respons yang sesuai</h3>
@@ -106,10 +106,15 @@
 <div id="lessonFeedback" class="feedback hidden" role="status" tabindex="-1"></div>
 <p id="lessonResults"></p>
 <button id="lessonRetry" class="hidden">もう一度 / Coba lagi</button>
-<p data-ruby>会話[かいわ]を読[よ]み、正解[せいかい]したら「完了[かんりょう]」を押[お]してください。</p>
+<div class="lesson-actions"><button id="lessonQuizBack" type="button">← 会話に戻る</button><button id="lessonToReview" class="primary" type="button" disabled>次へ：復習 →</button></div>
+</section>
+<section id="lessonReviewStep" class="panel hidden" aria-labelledby="reviewStepHeading">
+<h3 id="reviewStepHeading">③ 今日のことば / Kosakata</h3>
+<div id="lessonPhrase"></div>
+<ul id="lessonVocab" class="lesson-vocab"></ul>
 <button id="lessonComplete" class="primary" disabled></button>
 <p id="lessonCompleteStatus" role="status"></p>
-<button id="lessonNext" class="hidden" data-ruby>次[つぎ]の会話[かいわ]へ / Percakapan berikutnya</button>
+<div class="lesson-actions"><button id="lessonReviewBack" type="button">← 問題に戻る</button><button id="lessonNext" class="hidden" type="button">次の会話へ →</button></div>
 </section>
 </article>
 <p id="lessonStorageStatus" class="status" role="status"></p>
