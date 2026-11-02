@@ -48,14 +48,15 @@ function renderSummary() {
 function setMode(next) {
   stopSpeech();
   mode = next;
-  for (const key of ['lessons', 'learn', 'quiz', 'review']) {
+  for (const key of ['home', 'lessons', 'learn', 'quiz', 'review']) {
     $(key).classList.toggle('hidden', key !== mode);
     const tab = $('tab' + key[0].toUpperCase() + key.slice(1));
     tab.classList.toggle('active', key === mode);
     tab.setAttribute('aria-pressed', String(key === mode));
   }
-  $('coursePanel').classList.toggle('hidden', mode === 'lessons');
-  $('vocabProgress').classList.toggle('hidden', mode === 'lessons');
+  $('coursePanel').classList.toggle('hidden', mode === 'lessons' || mode === 'home');
+  $('vocabProgress').classList.toggle('hidden', mode === 'lessons' || mode === 'home');
+  if (mode === 'home') window.scrollTo({top: 0, behavior: 'instant'});
   window.dispatchEvent(new Event('izumodechange'));
 }
 function renderCard() {
@@ -224,6 +225,7 @@ document.querySelectorAll('[data-ruby]').forEach(el => {
     node.replaceWith(...span.childNodes);
   }
 });
+$('tabHome').onclick = () => setMode('home');
 $('tabLearn').onclick = () => { setMode('learn'); renderCard(); };
 $('tabQuiz').onclick = () => startQuiz(false);
 $('tabReview').onclick = () => { setMode('review'); renderSummary(); };
