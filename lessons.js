@@ -25,6 +25,8 @@ let activeLesson = null;
 let lessonChoices = [];
 let lessonAnswer = null;
 let lessonQuizOpen = false;
+let lessonStep = 0;
+let dialoguePage = 0;
 let returnLesson = null;
 function saveLessonProgress() {
   try {
@@ -60,19 +62,23 @@ function renderLessons() {
   $('lessonTitle').innerHTML = ruby(activeLesson.title.ja);
   $('lessonTitleId').textContent = state.lang === 'ja' ? '' : localize(activeLesson.title);
   $('lessonGoal').innerHTML = bilingual(activeLesson.goal);
-  $('lessonDialogue').replaceChildren(...activeLesson.dialogue.map((line, i) => {
+  const shownLines = activeLesson.dialogue.slice(dialoguePage * 2, dialoguePage * 2 + 2);
+  $('lessonDialogue').replaceChildren(...shownLines.map((line, i) => {
     const item = document.createElement('li');
     item.className = `dialogue-line speaker-${line.speaker}`;
     item.innerHTML = `<span class="speaker">${ruby(activeLesson.speakers[line.speaker].ja)}</span>
       <p class="sentence" lang="ja">${ruby(line.text)}</p>${lessonTranslation(line.translated)}`;
     const audio = document.createElement('button');
     audio.className = 'line-audio'; audio.textContent = '🔊 きく / Dengarkan';
-    audio.setAttribute('aria-label', `${i + 1}：${spoken(activeLesson.speakers[line.speaker].ja)}の音声`);
+    audio.setAttribute('aria-label', `${dialoguePage * 2 + i + 1}：${spoken(activeLesson.speakers[line.speaker].ja)}の音声`);
     const status = document.createElement('p');
     status.className = 'status line-status'; status.setAttribute('role', 'status');
     audio.onclick = () => speak(spoken(line.text), status);
     item.append(audio, status); return item;
   }));
+  $('lessonPagePosition').textContent = `会話 ${dialoguePage + 1} / ${Math.ceil(activeLesson.dialogue.length / 2)}`;
+  $('lessonPairPrev').disabled = dialoguePage === 0;
+  $('lessonPractice').textContent = dialoguePage < Math.ceil(activeLesson.dialogue.length / 2) - 1 ? '次の会話へ →' : '返事を練習する →';
   $('lessonPhrase').innerHTML = bilingual(activeLesson.phrase);
   $('lessonVocab').replaceChildren(...activeLesson.vocabIds.map(id => {
     const word = vocab.find(v => v.id === id);
@@ -93,6 +99,27 @@ function renderLessons() {
     item.append(button, meaning); return item;
   }));
   renderLessonQuiz();
+  renderLessonStep();
+}
+function renderLessonStep() {
+  $('lessonListen').classList.toggle('hidden', lessonStep !== 0);
+  $('lessonQuiz').classList.toggle('hidden', lessonStep !== 1);
+  $('lessonReviewStep').classList.toggle('hidden', lessonStep !== 2);
+  for (const [i,id] of ['stepHear','stepAnswer','stepReview'].entries()) {
+    $(id).classList.toggle('current-step', i === lessonStep);
+    if (i === lessonStep) $(id).setAttribute('aria-current','step');
+    else $(id).removeAttribute('aria-current');
+  }
+  $('lessonToReview').disabled = lessonAnswer !== activeLesson.quiz.answerId;
+  $('lessonComplete').disabled = lessonProgress.completed.includes(activeLesson.id) || lessonAnswer !== activeLesson.quiz.answerId;
+  $('lessonComplete').textContent = lessonProgress.completed.includes(activeLesson.id) ? '✓ 学習済み / Selesai' : '✓ このレッスンを完了する';
+  $('lessonNext').classList.toggle('hidden', !lessonProgress.completed.includes(activeLesson.id) || lessons.indexOf(activeLesson) === lessons.length - 1);
+}
+function goLessonStep(step) {
+  stopSpeech(); lessonStep = step;
+  if (step === 1) lessonQuizOpen = true;
+  renderLessons();
+  $('lessonTitle').scrollIntoView({block:'start'});
 }
 function openLesson(id, preserve = false) {
   const lesson = lessons.find(item => item.id === id);
@@ -102,6 +129,8 @@ function openLesson(id, preserve = false) {
     lessonChoices = shuffled(lesson.quiz.choices);
     lessonAnswer = lessonProgress.results[lesson.quiz.id]?.lastChoiceId ?? null;
     lessonQuizOpen = false;
+    lessonStep = 0;
+    dialoguePage = 0;
     $('lessonCompleteStatus').textContent = '';
   }
   returnLesson = null;
@@ -112,8 +141,7 @@ function openLesson(id, preserve = false) {
 function renderLessonQuiz() {
   const quiz = activeLesson.quiz;
   const result = lessonProgress.results[quiz.id];
-  $('lessonQuiz').classList.toggle('hidden', !lessonQuizOpen);
-  $('lessonPractice').classList.toggle('hidden', lessonQuizOpen);
+  // Step visibility is controlled by renderLessonStep().
   $('lessonQuizContext').innerHTML = bilingual(quiz.context);
   $('lessonQuizPrompt').innerHTML = bilingual(quiz.prompt);
   $('lessonResults').textContent = result ? `これまで ${result.attempts} 回回答・${result.correctCount} 回正解 / Jawaban benar: ${result.correctCount} dari ${result.attempts}` : 'まだ回答していません / Belum dijawab';
@@ -165,7 +193,15 @@ $('homeReview').onclick = () => { setMode('review'); renderSummary(); };
 window.addEventListener('izumodechange', renderHomeProgress);
 $('tabLessons').onclick = () => { activeLesson = null; returnLesson = null; setMode('lessons'); renderLessons(); };
 $('lessonBack').onclick = () => { activeLesson = null; returnLesson = null; setMode('lessons'); renderLessons(); $('lessonList').querySelector('button')?.focus(); };
-$('lessonPractice').onclick = () => { stopSpeech(); lessonQuizOpen = true; renderLessonQuiz(); $('lessonQuizPrompt').focus({preventScroll: true}); $('lessonQuiz').scrollIntoView({block: 'start'}); };
+$('lessonPractice').onclick = () => {
+  const total = Math.ceil(activeLesson.dialogue.length / 2);
+  if (dialoguePage < total - 1) { stopSpeech(); dialoguePage++; renderLessons(); $('lessonTitle').scrollIntoView({block:'start'}); }
+  else goLessonStep(1);
+};
+$('lessonPairPrev').onclick = () => { if(dialoguePage > 0) { stopSpeech(); dialoguePage--; renderLessons(); $('lessonTitle').scrollIntoView({block:'start'}); } };
+$('lessonQuizBack').onclick = () => goLessonStep(0);
+$('lessonToReview').onclick = () => { if (lessonAnswer === activeLesson.quiz.answerId) goLessonStep(2); };
+$('lessonReviewBack').onclick = () => goLessonStep(1);
 $('lessonRetry').onclick = () => { lessonAnswer = null; lessonChoices = shuffled(activeLesson.quiz.choices); renderLessonQuiz(); $('lessonQuizPrompt').focus({preventScroll: true}); $('lessonQuiz').scrollIntoView({block: 'start'}); };
 $('lessonComplete').onclick = () => {
   if (lessonAnswer !== activeLesson.quiz.answerId || lessonProgress.completed.includes(activeLesson.id)) return;
