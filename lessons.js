@@ -105,7 +105,7 @@ function openLesson(id, preserve = false) {
     $('lessonCompleteStatus').textContent = '';
   }
   returnLesson = null;
-  setMode('home'); renderLessons(); renderHomeProgress();
+  setMode('lessons'); renderLessons();
   $('lessonTitle').focus({preventScroll: true});
   $('lessonTitle').scrollIntoView({block: 'start'});
 }
