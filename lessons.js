@@ -105,7 +105,7 @@ function openLesson(id, preserve = false) {
     $('lessonCompleteStatus').textContent = '';
   }
   returnLesson = null;
-  setMode('lessons'); renderLessons();
+  setMode('home'); renderLessons(); renderHomeProgress();
   $('lessonTitle').focus({preventScroll: true});
   $('lessonTitle').scrollIntoView({block: 'start'});
 }
@@ -155,7 +155,15 @@ function renderLessonQuiz() {
   $('lessonComplete').textContent = completed ? '✓ この会話は完了 / Percakapan selesai' : '✓ この会話を完了する / Tandai selesai';
   $('lessonNext').classList.toggle('hidden', !completed || lessons.indexOf(activeLesson) === lessons.length - 1);
 }
-$('tabLessons').onclick = () => { setMode('lessons'); renderLessons(); };
+function renderHomeProgress() {
+  $('homeProgress').textContent = `会話 ${lessonProgress.completed.length} / ${lessons.length} 完了 · 単語 ${state.learned.length} / ${vocab.length} 学習済み`;
+}
+$('homeLessons').onclick = () => { activeLesson = null; returnLesson = null; setMode('lessons'); renderLessons(); };
+$('homeWords').onclick = () => { setMode('learn'); renderCard(); };
+$('homeQuiz').onclick = () => startQuiz(false);
+$('homeReview').onclick = () => { setMode('review'); renderSummary(); };
+window.addEventListener('izumodechange', renderHomeProgress);
+$('tabLessons').onclick = () => { activeLesson = null; returnLesson = null; setMode('lessons'); renderLessons(); };
 $('lessonBack').onclick = () => { activeLesson = null; returnLesson = null; setMode('lessons'); renderLessons(); $('lessonList').querySelector('button')?.focus(); };
 $('lessonPractice').onclick = () => { stopSpeech(); lessonQuizOpen = true; renderLessonQuiz(); $('lessonQuizPrompt').focus({preventScroll: true}); $('lessonQuiz').scrollIntoView({block: 'start'}); };
 $('lessonRetry').onclick = () => { lessonAnswer = null; lessonChoices = shuffled(activeLesson.quiz.choices); renderLessonQuiz(); $('lessonQuizPrompt').focus({preventScroll: true}); $('lessonQuiz').scrollIntoView({block: 'start'}); };
