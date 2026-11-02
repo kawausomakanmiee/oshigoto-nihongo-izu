@@ -46,6 +46,7 @@ function bilingual(translations, tag = 'p') {
 function renderLessons() {
   $('lessonSummary').textContent = `${lessonProgress.completed.length} / ${lessons.length} 会話を完了 / Percakapan selesai`;
   $('lessonStorageStatus').textContent = lessonStorageMessage;
+  $('lessonIntro').classList.toggle('hidden', !!activeLesson);
   $('lessonList').classList.toggle('hidden', !!activeLesson);
   $('lessonDetail').classList.toggle('hidden', !activeLesson);
   $('lessonReturn').classList.toggle('hidden', mode !== 'learn' || !returnLesson);
